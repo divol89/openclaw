@@ -1,5 +1,12 @@
+import type { Message } from "@grammyjs/types";
+import type { Bot } from "grammy";
+import type { MsgContext } from "../auto-reply/templating.js";
+import type { OpenClawConfig, ReplyToMode } from "../config/config.js";
+import type { TelegramAccountConfig } from "../config/types.telegram.js";
+import type { RuntimeEnv } from "../runtime.js";
+import type { TelegramThreadSpec } from "./bot/helpers.js";
+import type { TelegramContext, TelegramStreamMode } from "./bot/types.js";
 import { resolveAgentDir } from "../agents/agent-scope.js";
-// @ts-nocheck
 import {
   findModelInCatalog,
   loadModelCatalog,
@@ -8,13 +15,12 @@ import {
 import { resolveDefaultModelForAgent } from "../agents/model-selection.js";
 import { EmbeddedBlockChunker } from "../agents/pi-embedded-block-chunker.js";
 import { resolveChunkMode } from "../auto-reply/chunk.js";
-import { clearHistoryEntriesIfEnabled } from "../auto-reply/reply/history.js";
+import { clearHistoryEntriesIfEnabled, type HistoryEntry } from "../auto-reply/reply/history.js";
 import { dispatchReplyWithBufferedBlockDispatcher } from "../auto-reply/reply/provider-dispatcher.js";
 import { removeAckReactionAfterReply } from "../channels/ack-reactions.js";
 import { logAckFailure, logTypingFailure } from "../channels/logging.js";
 import { createReplyPrefixContext } from "../channels/reply-prefix.js";
 import { createTypingCallbacks } from "../channels/typing.js";
-import { OpenClawConfig } from "../config/config.js";
 import { resolveMarkdownTableMode } from "../config/markdown-tables.js";
 import { danger, logVerbose } from "../globals.js";
 import { deliverReplies } from "./bot/delivery.js";
@@ -38,6 +44,42 @@ async function resolveStickerVisionSupport(cfg: OpenClawConfig, agentId: string)
   }
 }
 
+type DispatchTelegramMessageParams = {
+  context: {
+    ctxPayload: MsgContext;
+    primaryCtx: TelegramContext;
+    msg: Message;
+    chatId: number;
+    isGroup: boolean;
+    threadSpec: TelegramThreadSpec;
+    historyKey: string | undefined;
+    historyLimit: number;
+    groupHistories: Map<string, HistoryEntry[]>;
+    route: { agentId: string; accountId: string; sessionKey: string };
+    skillFilter: string[] | undefined;
+    sendTyping: () => Promise<void>;
+    sendRecordVoice: () => Promise<void>;
+    ackReactionPromise: Promise<boolean> | null;
+    reactionApi:
+      | ((
+          chatId: number,
+          messageId: number,
+          reactions: Array<{ type: string; emoji: string }>,
+        ) => Promise<void>)
+      | null;
+    removeAckAfterReply: boolean;
+  };
+  bot: Bot;
+  cfg: OpenClawConfig;
+  runtime: RuntimeEnv;
+  replyToMode: ReplyToMode;
+  streamMode: TelegramStreamMode;
+  textLimit: number;
+  telegramCfg: TelegramAccountConfig;
+  opts: { token: string };
+  resolveBotTopicsEnabled: (ctx?: TelegramContext) => Promise<boolean>;
+};
+
 export const dispatchTelegramMessage = async ({
   context,
   bot,
@@ -49,8 +91,7 @@ export const dispatchTelegramMessage = async ({
   telegramCfg,
   opts,
   resolveBotTopicsEnabled,
-  // oxlint-disable-next-line typescript/no-explicit-any
-}: any) => {
+}: DispatchTelegramMessageParams) => {
   const {
     ctxPayload,
     primaryCtx,
@@ -168,7 +209,7 @@ export const dispatchTelegramMessage = async ({
   // Handle uncached stickers: get a dedicated vision description before dispatch
   // This ensures we cache a raw description rather than a conversational response
   const sticker = ctxPayload.Sticker;
-  if (sticker?.fileUniqueId && ctxPayload.MediaPath) {
+  if (sticker?.fileId && sticker.fileUniqueId && ctxPayload.MediaPath) {
     const agentDir = resolveAgentDir(cfg, route.agentId);
     const stickerSupportsVision = await resolveStickerVisionSupport(cfg, route.agentId);
     let description = sticker.cachedDescription ?? null;
