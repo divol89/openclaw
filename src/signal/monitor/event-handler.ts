@@ -331,10 +331,9 @@ export function createSignalEventHandler(deps: SignalEventHandlerDeps) {
     }
 
     const dataMessage = envelope.dataMessage ?? envelope.editMessage?.dataMessage;
-    const isEdit = Boolean(envelope.editMessage?.targetSentTimestamp);
-    const editTargetTimestamp = isEdit
-      ? Number(envelope.editMessage.targetSentTimestamp)
-      : undefined;
+    const targetSentTimestamp = envelope.editMessage?.targetSentTimestamp;
+    const isEdit = typeof targetSentTimestamp === "number" && !isNaN(targetSentTimestamp);
+    const editTargetTimestamp = isEdit ? targetSentTimestamp : undefined;
     const reaction = deps.isSignalReactionMessage(envelope.reactionMessage)
       ? envelope.reactionMessage
       : deps.isSignalReactionMessage(dataMessage?.reaction)

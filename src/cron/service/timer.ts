@@ -1,10 +1,9 @@
 import type { HeartbeatRunResult } from "../../infra/heartbeat-wake.js";
 import type { CronJob } from "../types.js";
 import type { CronEvent, CronServiceState } from "./state.js";
-import { computeJobNextRunAtMs, nextWakeAtMs, resolveJobPayloadTextForMain } from "./jobs.js";
+import { computeJobNextRunAtMs, nextWakeAtMs, resolveJobPayloadTextForMain, recomputeNextRuns } from "./jobs.js";
 import { locked } from "./locked.js";
 import { ensureLoaded, persist } from "./store.js";
-import { recomputeNextRuns } from "./jobs.js";
 
 const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 
@@ -30,6 +29,7 @@ export function armTimer(state: CronServiceState) {
   
   if (state.timer) {
     clearTimeout(state.timer);
+    state.timer = null;
   }
   
   state.deps.log.debug(
