@@ -1,6 +1,7 @@
 import type { HeartbeatRunResult } from "../../infra/heartbeat-wake.js";
 import type { CronJob } from "../types.js";
 import type { CronEvent, CronServiceState } from "./state.js";
+<<<<<<< HEAD
 import { resolveCronDeliveryPlan } from "../delivery.js";
 import {
   computeJobNextRunAtMs,
@@ -8,6 +9,9 @@ import {
   recomputeNextRuns,
   resolveJobPayloadTextForMain,
 } from "./jobs.js";
+=======
+import { computeJobNextRunAtMs, nextWakeAtMs, resolveJobPayloadTextForMain, recomputeNextRuns } from "./jobs.js";
+>>>>>>> 10f5f144c (fix(cron): ensure timer callback fires for scheduled jobs)
 import { locked } from "./locked.js";
 import { ensureLoaded, persist } from "./store.js";
 
@@ -116,11 +120,19 @@ function applyJobResult(
 
 export function armTimer(state: CronServiceState) {
   if (!state.deps.cronEnabled) {
+<<<<<<< HEAD
     state.deps.log.debug({}, "cron: armTimer skipped - scheduler disabled");
+=======
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+>>>>>>> 10f5f144c (fix(cron): ensure timer callback fires for scheduled jobs)
     return;
   }
   const nextAt = nextWakeAtMs(state);
   if (!nextAt) {
+<<<<<<< HEAD
     const jobCount = state.store?.jobs.length ?? 0;
     const enabledCount = state.store?.jobs.filter((j) => j.enabled).length ?? 0;
     const withNextRun =
@@ -141,13 +153,41 @@ export function armTimer(state: CronServiceState) {
     try {
       await onTimer(state);
     } catch (err) {
+=======
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    return;
+  }
+  const delay = Math.max(nextAt - state.deps.nowMs(), 0);
+  // Avoid TimeoutOverflowWarning when a job is far in the future.
+  const clampedDelay = Math.min(delay, MAX_TIMEOUT_MS);
+  
+  if (state.timer) {
+    clearTimeout(state.timer);
+    state.timer = null;
+  }
+  
+  state.deps.log.debug(
+    { nextAt, now: state.deps.nowMs(), delay, clampedDelay },
+    "cron: arming timer",
+  );
+  
+  state.timer = setTimeout(() => {
+    void onTimer(state).catch((err) => {
+>>>>>>> 10f5f144c (fix(cron): ensure timer callback fires for scheduled jobs)
       state.deps.log.error({ err: String(err) }, "cron: timer tick failed");
     }
   }, clampedDelay);
+<<<<<<< HEAD
   state.deps.log.debug(
     { nextAt, delayMs: clampedDelay, clamped: delay > MAX_TIMER_DELAY_MS },
     "cron: timer armed",
   );
+=======
+  // Don't unref - we want the timer to keep the event loop alive
+>>>>>>> 10f5f144c (fix(cron): ensure timer callback fires for scheduled jobs)
 }
 
 export async function onTimer(state: CronServiceState) {
@@ -158,6 +198,7 @@ export async function onTimer(state: CronServiceState) {
   }
   state.running = true;
   try {
+<<<<<<< HEAD
     const dueJobs = await locked(state, async () => {
       await ensureLoaded(state, { forceReload: true, skipRecompute: true });
       const due = findDueJobs(state);
@@ -175,6 +216,15 @@ export async function onTimer(state: CronServiceState) {
         job.state.runningAtMs = now;
         job.state.lastError = undefined;
       }
+=======
+    await locked(state, async () => {
+      // Load without recomputing to preserve stored nextRunAtMs values
+      await ensureLoaded(state, { forceReload: true, skipRecompute: true });
+      // Check and run due jobs using stored nextRunAtMs
+      await runDueJobs(state);
+      // Then recompute next runs for subsequent executions
+      recomputeNextRuns(state);
+>>>>>>> 10f5f144c (fix(cron): ensure timer callback fires for scheduled jobs)
       await persist(state);
 
       return due.map((j) => ({
