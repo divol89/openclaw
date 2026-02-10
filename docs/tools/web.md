@@ -1,9 +1,10 @@
 ---
-summary: "Web search + fetch tools (Brave Search API, Perplexity direct/OpenRouter)"
+summary: "Web search + fetch tools (Brave Search API, Perplexity direct/OpenRouter, xAI Grok)"
 read_when:
   - You want to enable web_search or web_fetch
   - You need Brave Search API key setup
   - You want to use Perplexity Sonar for web search
+  - You want to use xAI Grok for web search
 title: "Web Tools"
 ---
 
@@ -11,7 +12,7 @@ title: "Web Tools"
 
 OpenClaw ships two lightweight web tools:
 
-- `web_search` — Search the web via Brave Search API (default) or Perplexity Sonar (direct or via OpenRouter).
+- `web_search` — Search the web via Brave Search API (default), Perplexity Sonar (direct or via OpenRouter), or xAI Grok.
 - `web_fetch` — HTTP fetch + readable extraction (HTML → markdown/text).
 
 These are **not** browser automation. For JS-heavy sites or logins, use the
@@ -22,6 +23,7 @@ These are **not** browser automation. For JS-heavy sites or logins, use the
 - `web_search` calls your configured provider and returns results.
   - **Brave** (default): returns structured results (title, URL, snippet).
   - **Perplexity**: returns AI-synthesized answers with citations from real-time web search.
+  - **Grok**: returns AI-synthesized answers with citations from real-time web search via xAI's API.
 - Results are cached by query for 15 minutes (configurable).
 - `web_fetch` does a plain HTTP GET and extracts readable content
   (HTML → markdown/text). It does **not** execute JavaScript.
@@ -33,8 +35,9 @@ These are **not** browser automation. For JS-heavy sites or logins, use the
 | ------------------- | -------------------------------------------- | ---------------------------------------- | -------------------------------------------- |
 | **Brave** (default) | Fast, structured results, free tier          | Traditional search results               | `BRAVE_API_KEY`                              |
 | **Perplexity**      | AI-synthesized answers, citations, real-time | Requires Perplexity or OpenRouter access | `OPENROUTER_API_KEY` or `PERPLEXITY_API_KEY` |
+| **Grok**            | AI-synthesized answers, citations, real-time | Requires xAI API access                  | `XAI_API_KEY`                                |
 
-See [Brave Search setup](/brave-search) and [Perplexity Sonar](/perplexity) for provider-specific details.
+See [Brave Search setup](/brave-search), [Perplexity Sonar](/perplexity), and xAI Grok setup below for provider-specific details.
 
 Set the provider in config:
 
@@ -43,7 +46,7 @@ Set the provider in config:
   tools: {
     web: {
       search: {
-        provider: "brave", // or "perplexity"
+        provider: "brave", // or "perplexity" or "grok"
       },
     },
   },
@@ -68,6 +71,44 @@ Example: switch to Perplexity Sonar (direct API):
   },
 }
 ```
+
+## Getting an xAI API key
+
+1. Create an account at [https://x.ai/](https://x.ai/)
+2. Navigate to the developer portal to generate an API key
+3. Run `openclaw configure --section web` to store the key in config (recommended), or set `XAI_API_KEY` in your environment.
+
+### Setting up Grok search
+
+```json5
+{
+  tools: {
+    web: {
+      search: {
+        enabled: true,
+        provider: "grok",
+        grok: {
+          // API key (optional if XAI_API_KEY is set)
+          apiKey: "xai-...",
+          // Model (defaults to grok-4)
+          model: "grok-4",
+          // Include inline citations in response text as markdown links
+          inlineCitations: false,
+        },
+      },
+    },
+  },
+}
+```
+
+**Environment alternative:** set `XAI_API_KEY` in the Gateway environment. For a gateway install, put it in `~/.openclaw/.env`.
+
+### Available Grok models
+
+| Model    | Description                 | Best for             |
+| -------- | --------------------------- | -------------------- |
+| `grok-4` | Latest Grok model (default) | General purpose      |
+| `grok-3` | Previous generation model   | Cost-sensitive tasks |
 
 ## Getting a Brave API key
 
@@ -149,6 +190,7 @@ Search the web using your configured provider.
 - API key for your chosen provider:
   - **Brave**: `BRAVE_API_KEY` or `tools.web.search.apiKey`
   - **Perplexity**: `OPENROUTER_API_KEY`, `PERPLEXITY_API_KEY`, or `tools.web.search.perplexity.apiKey`
+  - **Grok**: `XAI_API_KEY` or `tools.web.search.grok.apiKey`
 
 ### Config
 
